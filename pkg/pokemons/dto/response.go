@@ -30,23 +30,28 @@ type PokemonDetailResponse struct {
 	Weight     int                   `json:"weight"`
 	BaseExp    int                   `json:"base_exp"`
 	Stats      PokemonStats          `json:"stats"`
-	ImageURL   string                `json:"image_url,omitempty"`
+	ImageURL   string                `json:"image_url"`
 	Generation *GenerationResponse   `json:"generation,omitempty"`
 	Types      []PokemonTypeResponse `json:"types"`
 	CreatedAt  time.Time             `json:"created_at"`
 	UpdatedAt  time.Time             `json:"updated_at"`
 }
 
-type PokemonListItemResponse struct {
-	ID       int      `json:"id"`
-	Name     string   `json:"name"`
-	ImageURL string   `json:"image_url,omitempty"`
-	Types    []string `json:"types"`
+type ResponseOne struct {
+	Message string                `json:"message"`
+	Value   PokemonDetailResponse `json:"pokemon"`
 }
 
-type APIResponse struct {
-	Success bool        `json:"success"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
-	Errors  interface{} `json:"errors,omitempty"`
+type ResponseAll struct {
+	Message string                  `json:"message"`
+	Value   []PokemonDetailResponse `json:"pokemons"`
+}
+
+type ResponseRows struct {
+	Message    string `json:"message"`
+	RowsAffect int    `json:"RowsAffect"`
+}
+
+type ResponseError struct {
+	Message string `json:"message"`
 }

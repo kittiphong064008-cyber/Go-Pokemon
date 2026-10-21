@@ -1,60 +1,60 @@
-package config
+package configs
 
 import (
-	"os"
+	"errors"
+	"log"
 
-	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 )
 
-type Config struct {
-	App AppConfig
-	DB  DBConfig
+type Configs struct {
+	App        Fiber      `mapstructure:"app"`
+	PostgreSQL PostgreSQL `mapstructure:"postgres"`
 }
 
-type AppConfig struct {
-	Host string
-	Port string
+type Fiber struct {
+	Host string `mapstructure:"FIBER_HOST"`
+	Port string `mapstructure:"FIBER_PORT"`
 }
 
-type DBConfig struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	Database string
-	SSLMode  string
+type PostgreSQL struct {
+	Host     string `mapstructure:"DB_HOST"`
+	Port     string `mapstructure:"DB_PORT"`
+	User     string `mapstructure:"DB_USERNAME"`
+	Password string `mapstructure:"DB_PASSWORD"`
+	Database string `mapstructure:"DB_DATABASE"`
+	SSLMode  string `mapstructure:"DB_SSLMODE"`
 }
 
-func Load() *Config {
-	_ = godotenv.Load()
+func Load() Configs {
+	v := viper.New()
+	v.SetConfigName("config")
+	v.SetConfigType("yaml")
+	v.AddConfigPath(".")
+	v.AddConfigPath("./config")
 
-	appPort := os.Getenv("APP_PORT")
-	if appPort == "" {
-		appPort = "8000"
+	setDefaults(v)
+
+	if err := v.ReadInConfig(); err != nil {
+		var notFound viper.ConfigFileNotFoundError
+		if errors.As(err, &notFound) {
+			log.Println("Not Found config.yml")
+		} else {
+			log.Fatalf("can not read config.yml: %v", err)
+		}
 	}
 
-	dbPort := os.Getenv("DB_PORT")
-	if dbPort == "" {
-		dbPort = "5432"
+	var cfg Configs
+	if err := v.Unmarshal(&cfg); err != nil {
+		log.Fatalf("can not decode config: %v", err)
 	}
+	return cfg
+}
 
-	sslMode := os.Getenv("DB_SSLMODE")
-	if sslMode == "" {
-		sslMode = "disable"
-	}
-
-	return &Config{
-		App: AppConfig{
-			Host: os.Getenv("APP_HOST"),
-			Port: appPort,
-		},
-		DB: DBConfig{
-			Host:     os.Getenv("DB_HOST"),
-			Port:     dbPort,
-			User:     os.Getenv("DB_USER"),
-			Password: os.Getenv("DB_PASSWORD"),
-			Database: os.Getenv("DB_NAME"),
-			SSLMode:  sslMode,
-		},
-	}
+func setDefaults(v *viper.Viper) {
+	v.SetDefault("app.FIBER_HOST", "localhost")
+	v.SetDefault("app.FIBER_PORT", "8000")
+	v.SetDefault("postgres.DB_HOST", "localhost")
+	v.SetDefault("postgres.DB_PORT", "5432")
+	v.SetDefault("postgres.DB_SSLMODE", "disable")
 }

@@ -10,6 +10,7 @@ type Service interface {
 	Create(req dto.CreatePokemonRequest) (*dto.PokemonDetailResponse, error)
 	GetByID(id int) (*dto.PokemonDetailResponse, error)
 	GetAll() ([]dto.PokemonDetailResponse, error)
+	UpdatePokemonByID(id int, req dto.PokemonUpdateRequest) (int, error)
 	Delete(id int) error
 }
 
@@ -68,6 +69,78 @@ func (s *service) GetAll() ([]dto.PokemonDetailResponse, error) {
 	}
 
 	return responses, nil
+}
+
+func (s *service) UpdatePokemonByID(id int, req dto.PokemonUpdateRequest) (int, error) {
+	existing, err := s.repo.GetByID(id)
+	if err != nil {
+		return 0, err
+	}
+
+	if req.Name != nil {
+		existing.Pokemon.Name = *req.Name
+	}
+	if req.Height != nil {
+		existing.Pokemon.Height = *req.Height
+	}
+	if req.Weight != nil {
+		existing.Pokemon.Weight = *req.Weight
+	}
+	if req.BaseExp != nil {
+		existing.Pokemon.BaseExp = *req.BaseExp
+	}
+	if req.Hp != nil {
+		existing.Pokemon.Hp = *req.Hp
+	}
+	if req.Attack != nil {
+		existing.Pokemon.Attack = *req.Attack
+	}
+	if req.Defense != nil {
+		existing.Pokemon.Defense = *req.Defense
+	}
+	if req.SpAtk != nil {
+		existing.Pokemon.SpAtk = *req.SpAtk
+	}
+	if req.SpDef != nil {
+		existing.Pokemon.SpDef = *req.SpDef
+	}
+	if req.Speed != nil {
+		existing.Pokemon.Speed = *req.Speed
+	}
+	if req.ImageURL != nil {
+		existing.Pokemon.ImageURL = *req.ImageURL
+	}
+	if req.GenerationID != nil {
+		existing.Pokemon.GenerationID = req.GenerationID
+	}
+
+	var typeIDs []int
+	if len(req.TypeIDs) > 0 {
+		typeIDs = req.TypeIDs
+	} else {
+		for _, t := range existing.Types {
+			typeIDs = append(typeIDs, t.TypeID)
+		}
+	}
+
+	query := domain.CreatePokemonQuery{
+		ID:           existing.Pokemon.ID,
+		Name:         existing.Pokemon.Name,
+		Height:       existing.Pokemon.Height,
+		Weight:       existing.Pokemon.Weight,
+		BaseExp:      existing.Pokemon.BaseExp,
+		Hp:           existing.Pokemon.Hp,
+		Attack:       existing.Pokemon.Attack,
+		Defense:      existing.Pokemon.Defense,
+		SpAtk:        existing.Pokemon.SpAtk,
+		SpDef:        existing.Pokemon.SpDef,
+		Speed:        existing.Pokemon.Speed,
+		ImageURL:     existing.Pokemon.ImageURL,
+		GenerationID: existing.Pokemon.GenerationID,
+		TypeIDs:      typeIDs,
+	}
+
+	return s.repo.Update(id, query)
 }
 
 func (s *service) Delete(id int) error {

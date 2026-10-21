@@ -1,6 +1,5 @@
 package domain
 
-// CreatePokemonQuery holds data to be persisted across 'pokemon' and 'pokemon_types' tables
 type CreatePokemonQuery struct {
 	ID           int
 	Name         string
@@ -15,5 +14,5 @@ type CreatePokemonQuery struct {
 	Speed        int
 	ImageURL     string
 	GenerationID *int
-	TypeIDs      []int // IDs of types to insert into pokemon_types (slot 1, slot 2)
+	TypeIDs      []int
 }

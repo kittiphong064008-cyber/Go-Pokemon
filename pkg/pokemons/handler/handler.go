@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 
 	"github.com/go-playground/validator/v10"
@@ -12,129 +11,115 @@ import (
 	"github.com/kittiphong064008-cyber/Go-Pokemon/pkg/pokemons/service"
 )
 
-type Handler struct {
-	service  service.Service
-	validate *validator.Validate
+type handler struct {
+	service service.Service
 }
 
-func NewHandler(service service.Service, validate *validator.Validate) *Handler {
-	return &Handler{
-		service:  service,
-		validate: validate,
+var val = validator.New()
+
+func NewHandler(service service.Service) *handler {
+	return &handler{
+		service: service,
 	}
 }
 
-func (h *Handler) CreatePokemon(c fiber.Ctx) error {
+func (h *handler) CreatePokemon(c fiber.Ctx) error {
 	var req dto.CreatePokemonRequest
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(dto.APIResponse{
-			Success: false,
-			Message: "invalid request body format",
-			Errors:  err.Error(),
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ResponseError{Message: err.Error()})
 	}
 
-	if err := h.validate.Struct(req); err != nil {
-		var validationErrors []string
-		for _, err := range err.(validator.ValidationErrors) {
-			validationErrors = append(validationErrors, fmt.Sprintf("field '%s' failed on validation rule '%s'", err.Field(), err.Tag()))
-		}
-		return c.Status(fiber.StatusBadRequest).JSON(dto.APIResponse{
-			Success: false,
-			Message: "validation error",
-			Errors:  validationErrors,
-		})
+	if err := val.Struct(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ResponseError{Message: "Invalid Body Format"})
 	}
 
 	res, err := h.service.Create(req)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(dto.APIResponse{
-			Success: false,
-			Message: "failed to create pokemon",
-			Errors:  err.Error(),
-		})
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ResponseError{Message: err.Error()})
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(dto.APIResponse{
-		Success: true,
-		Message: "pokemon created successfully",
-		Data:    res,
+	return c.Status(fiber.StatusCreated).JSON(dto.ResponseOne{
+		Message: "Create Success",
+		Value:   *res,
 	})
 }
 
-func (h *Handler) GetPokemonByID(c fiber.Ctx) error {
+func (h *handler) GetPokemonByID(c fiber.Ctx) error {
 	id, err := strconv.Atoi(c.Params("id"))
 	if err != nil || id <= 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(dto.APIResponse{
-			Success: false,
-			Message: "invalid pokemon ID",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ResponseError{Message: "Invalid ID"})
 	}
 
 	res, err := h.service.GetByID(id)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
-			return c.Status(fiber.StatusNotFound).JSON(dto.APIResponse{
-				Success: false,
-				Message: "pokemon not found",
-			})
+			return c.Status(fiber.StatusNotFound).JSON(dto.ResponseError{Message: "Pokemon not found"})
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(dto.APIResponse{
-			Success: false,
-			Message: "failed to get pokemon",
-			Errors:  err.Error(),
-		})
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ResponseError{Message: err.Error()})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(dto.APIResponse{
-		Success: true,
-		Message: "pokemon retrieved successfully",
-		Data:    res,
+	return c.Status(fiber.StatusOK).JSON(dto.ResponseOne{
+		Message: "GET Success",
+		Value:   *res,
 	})
 }
 
-func (h *Handler) GetAllPokemons(c fiber.Ctx) error {
+func (h *handler) GetAllPokemons(c fiber.Ctx) error {
 	res, err := h.service.GetAll()
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(dto.APIResponse{
-			Success: false,
-			Message: "failed to retrieve pokemons",
-			Errors:  err.Error(),
-		})
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ResponseError{Message: err.Error()})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(dto.APIResponse{
-		Success: true,
-		Message: "pokemons retrieved successfully",
-		Data:    res,
+	return c.Status(fiber.StatusOK).JSON(dto.ResponseAll{
+		Message: "GET Success",
+		Value:   res,
 	})
 }
 
-func (h *Handler) DeletePokemon(c fiber.Ctx) error {
+func (h *handler) UpdatePokemonByID(c fiber.Ctx) error {
 	id, err := strconv.Atoi(c.Params("id"))
 	if err != nil || id <= 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(dto.APIResponse{
-			Success: false,
-			Message: "invalid pokemon ID",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ResponseError{Message: "Invalid ID"})
+	}
+
+	var req dto.PokemonUpdateRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ResponseError{Message: err.Error()})
+	}
+
+	if err := val.Struct(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ResponseError{Message: "Invalid Body Format"})
+	}
+
+	rowsAffected, err := h.service.UpdatePokemonByID(id, req)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(dto.ResponseError{Message: "Pokemon not found"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ResponseError{Message: err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(dto.ResponseRows{
+		Message:    "Update Success",
+		RowsAffect: rowsAffected,
+	})
+}
+
+func (h *handler) DeletePokemon(c fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil || id <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.ResponseError{Message: "Invalid ID"})
 	}
 
 	if err := h.service.Delete(id); err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
-			return c.Status(fiber.StatusNotFound).JSON(dto.APIResponse{
-				Success: false,
-				Message: "pokemon not found",
-			})
+			return c.Status(fiber.StatusNotFound).JSON(dto.ResponseError{Message: "Pokemon not found"})
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(dto.APIResponse{
-			Success: false,
-			Message: "failed to delete pokemon",
-			Errors:  err.Error(),
-		})
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.ResponseError{Message: err.Error()})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(dto.APIResponse{
-		Success: true,
-		Message: "pokemon deleted successfully",
+	return c.Status(fiber.StatusOK).JSON(dto.ResponseRows{
+		Message:    "Delete Success",
+		RowsAffect: 1,
 	})
 }

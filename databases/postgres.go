@@ -3,52 +3,33 @@ package databases
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
 
-	"github.com/kittiphong064008-cyber/Go-Pokemon/config"
+	configs "github.com/kittiphong064008-cyber/Go-Pokemon/config"
 	_ "github.com/lib/pq"
 )
 
-func ConnectPostgres(cfg *config.Config) (*sql.DB, error) {
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		cfg.DB.Host,
-		cfg.DB.Port,
-		cfg.DB.User,
-		cfg.DB.Password,
-		cfg.DB.Database,
-		cfg.DB.SSLMode,
-	)
-
-	db, err := sql.Open("postgres", dsn)
+func ConnectPostgres(config configs.Configs) (*sql.DB, error) {
+	cfg := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		config.PostgreSQL.Host,
+		config.PostgreSQL.Port,
+		config.PostgreSQL.User,
+		config.PostgreSQL.Password,
+		config.PostgreSQL.Database,
+		config.PostgreSQL.SSLMode)
+	db, err := sql.Open("postgres", cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database connection: %w", err)
+		return nil, err
 	}
 
 	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		return nil, err
 	}
 
-	log.Println("Successfully connected to PostgreSQL")
-
-	if err := runMigrations(db); err != nil {
-		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	schemaBytes, err := os.ReadFile("databases/schema.sql")
+	if err == nil {
+		_, _ = db.Exec(string(schemaBytes))
 	}
 
 	return db, nil
-}
-
-func runMigrations(db *sql.DB) error {
-	schemaBytes, err := os.ReadFile("databases/schema.sql")
-	if err != nil {
-		return fmt.Errorf("failed to read schema.sql: %w", err)
-	}
-
-	_, err = db.Exec(string(schemaBytes))
-	if err != nil {
-		return fmt.Errorf("failed to execute schema.sql: %w", err)
-	}
-
-	log.Println("Database schema applied successfully (all 10 tables ready)")
-	return nil
 }

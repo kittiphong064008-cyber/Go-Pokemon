@@ -1,0 +1,11 @@
+app:
+  FIBER_HOST: localhost
+  FIBER_PORT: 8000
+
+postgres:
+  DB_HOST: localhost
+  DB_PORT: 5432
+  DB_DATABASE: mydatabase
+  DB_USERNAME: myuser
+  DB_PASSWORD: mypassword
+  DB_SSLMODE: disable

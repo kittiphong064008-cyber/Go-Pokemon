@@ -16,6 +16,7 @@ type Repository interface {
 	Create(query domain.CreatePokemonQuery) (*domain.PokemonDetail, error)
 	GetByID(id int) (*domain.PokemonDetail, error)
 	GetAll() ([]domain.PokemonDetail, error)
+	Update(id int, query domain.CreatePokemonQuery) (int, error)
 	Delete(id int) error
 }
 
@@ -126,6 +127,10 @@ func (r *repository) GetByID(id int) (*domain.PokemonDetail, error) {
 		detail.Types = append(detail.Types, pt)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return &detail, nil
 }
 
@@ -177,7 +182,10 @@ func (r *repository) GetAll() ([]domain.PokemonDetail, error) {
 		results = append(results, detail)
 	}
 
-	// Fetch types for all pokemons
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	for i := range results {
 		typesQuery := `
 			SELECT pt.pokemon_id, pt.type_id, pt.slot, t.name
@@ -192,14 +200,71 @@ func (r *repository) GetAll() ([]domain.PokemonDetail, error) {
 		}
 		for tRows.Next() {
 			var pt domain.PokemonType
-			if err := tRows.Scan(&pt.PokemonID, &pt.TypeID, &pt.Slot, &pt.TypeName); err == nil {
-				results[i].Types = append(results[i].Types, pt)
+			if err := tRows.Scan(&pt.PokemonID, &pt.TypeID, &pt.Slot, &pt.TypeName); err != nil {
+				tRows.Close()
+				return nil, err
 			}
+			results[i].Types = append(results[i].Types, pt)
+		}
+		if err := tRows.Err(); err != nil {
+			tRows.Close()
+			return nil, err
 		}
 		tRows.Close()
 	}
 
 	return results, nil
+}
+
+func (r *repository) Update(id int, query domain.CreatePokemonQuery) (int, error) {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	sqlQuery := `
+		UPDATE pokemon 
+		SET name = $1, height = $2, weight = $3, base_exp = $4,
+		    hp = $5, attack = $6, defense = $7, sp_atk = $8, sp_def = $9, speed = $10,
+		    image_url = $11, generation_id = $12, updated_at = now()
+		WHERE id = $13
+	`
+	result, err := tx.Exec(sqlQuery,
+		query.Name, query.Height, query.Weight, query.BaseExp,
+		query.Hp, query.Attack, query.Defense, query.SpAtk, query.SpDef, query.Speed,
+		query.ImageURL, query.GenerationID, id,
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	if rowsAffected == 0 {
+		return 0, ErrNotFound
+	}
+
+	if len(query.TypeIDs) > 0 {
+		if _, err := tx.Exec(`DELETE FROM pokemon_types WHERE pokemon_id = $1`, id); err != nil {
+			return 0, err
+		}
+		insertTypeSQL := `INSERT INTO pokemon_types (pokemon_id, type_id, slot) VALUES ($1, $2, $3)`
+		for i, typeID := range query.TypeIDs {
+			slot := i + 1
+			if _, err := tx.Exec(insertTypeSQL, id, typeID, slot); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+
+	return int(rowsAffected), nil
 }
 
 func (r *repository) Delete(id int) error {

@@ -1,17 +1,19 @@
 package service
 
 import (
+	"context"
+
 	"github.com/kittiphong064008-cyber/Go-Pokemon/pkg/pokemons/domain"
 	"github.com/kittiphong064008-cyber/Go-Pokemon/pkg/pokemons/dto"
 	"github.com/kittiphong064008-cyber/Go-Pokemon/pkg/pokemons/repository"
 )
 
 type Service interface {
-	Create(req dto.CreatePokemonRequest) (*dto.PokemonDetailResponse, error)
-	GetByID(id int) (*dto.PokemonDetailResponse, error)
-	GetAll() ([]dto.PokemonDetailResponse, error)
-	UpdatePokemonByID(id int, req dto.PokemonUpdateRequest) (int, error)
-	Delete(id int) error
+	Create(ctx context.Context, req dto.CreatePokemonRequest) (*dto.PokemonDetailResponse, error)
+	GetByID(ctx context.Context, id int) (*dto.PokemonDetailResponse, error)
+	GetAll(ctx context.Context) ([]dto.PokemonDetailResponse, error)
+	UpdatePokemonByID(ctx context.Context, id int, req dto.PokemonUpdateRequest) (int, error)
+	Delete(ctx context.Context, id int) error
 }
 
 type service struct {
@@ -22,7 +24,7 @@ func NewService(repo repository.Repository) Service {
 	return &service{repo: repo}
 }
 
-func (s *service) Create(req dto.CreatePokemonRequest) (*dto.PokemonDetailResponse, error) {
+func (s *service) Create(ctx context.Context, req dto.CreatePokemonRequest) (*dto.PokemonDetailResponse, error) {
 	query := domain.CreatePokemonQuery{
 		ID:           req.ID,
 		Name:         req.Name,
@@ -40,7 +42,7 @@ func (s *service) Create(req dto.CreatePokemonRequest) (*dto.PokemonDetailRespon
 		TypeIDs:      req.TypeIDs,
 	}
 
-	detail, err := s.repo.Create(query)
+	detail, err := s.repo.Create(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -48,8 +50,8 @@ func (s *service) Create(req dto.CreatePokemonRequest) (*dto.PokemonDetailRespon
 	return toDetailResponse(detail), nil
 }
 
-func (s *service) GetByID(id int) (*dto.PokemonDetailResponse, error) {
-	detail, err := s.repo.GetByID(id)
+func (s *service) GetByID(ctx context.Context, id int) (*dto.PokemonDetailResponse, error) {
+	detail, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -57,8 +59,8 @@ func (s *service) GetByID(id int) (*dto.PokemonDetailResponse, error) {
 	return toDetailResponse(detail), nil
 }
 
-func (s *service) GetAll() ([]dto.PokemonDetailResponse, error) {
-	details, err := s.repo.GetAll()
+func (s *service) GetAll(ctx context.Context) ([]dto.PokemonDetailResponse, error) {
+	details, err := s.repo.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -71,8 +73,8 @@ func (s *service) GetAll() ([]dto.PokemonDetailResponse, error) {
 	return responses, nil
 }
 
-func (s *service) UpdatePokemonByID(id int, req dto.PokemonUpdateRequest) (int, error) {
-	existing, err := s.repo.GetByID(id)
+func (s *service) UpdatePokemonByID(ctx context.Context, id int, req dto.PokemonUpdateRequest) (int, error) {
+	existing, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return 0, err
 	}
@@ -140,11 +142,11 @@ func (s *service) UpdatePokemonByID(id int, req dto.PokemonUpdateRequest) (int, 
 		TypeIDs:      typeIDs,
 	}
 
-	return s.repo.Update(id, query)
+	return s.repo.Update(ctx, id, query)
 }
 
-func (s *service) Delete(id int) error {
-	return s.repo.Delete(id)
+func (s *service) Delete(ctx context.Context, id int) error {
+	return s.repo.Delete(ctx, id)
 }
 
 func toDetailResponse(d *domain.PokemonDetail) *dto.PokemonDetailResponse {

@@ -33,7 +33,7 @@ func (h *handler) CreatePokemon(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ResponseError{Message: "Invalid Body Format"})
 	}
 
-	res, err := h.service.Create(req)
+	res, err := h.service.Create(c.Context(), req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ResponseError{Message: err.Error()})
 	}
@@ -50,7 +50,7 @@ func (h *handler) GetPokemonByID(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ResponseError{Message: "Invalid ID"})
 	}
 
-	res, err := h.service.GetByID(id)
+	res, err := h.service.GetByID(c.Context(), id)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(dto.ResponseError{Message: "Pokemon not found"})
@@ -65,7 +65,7 @@ func (h *handler) GetPokemonByID(c fiber.Ctx) error {
 }
 
 func (h *handler) GetAllPokemons(c fiber.Ctx) error {
-	res, err := h.service.GetAll()
+	res, err := h.service.GetAll(c.Context())
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.ResponseError{Message: err.Error()})
 	}
@@ -91,7 +91,7 @@ func (h *handler) UpdatePokemonByID(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ResponseError{Message: "Invalid Body Format"})
 	}
 
-	rowsAffected, err := h.service.UpdatePokemonByID(id, req)
+	rowsAffected, err := h.service.UpdatePokemonByID(c.Context(), id, req)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(dto.ResponseError{Message: "Pokemon not found"})
@@ -111,7 +111,7 @@ func (h *handler) DeletePokemon(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.ResponseError{Message: "Invalid ID"})
 	}
 
-	if err := h.service.Delete(id); err != nil {
+	if err := h.service.Delete(c.Context(), id); err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(dto.ResponseError{Message: "Pokemon not found"})
 		}
